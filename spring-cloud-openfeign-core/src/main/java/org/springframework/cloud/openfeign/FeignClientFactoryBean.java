@@ -48,6 +48,7 @@ import org.springframework.util.StringUtils;
  * @author Eko Kurniawan Khannedy
  * @author Gregor Zurowski
  */
+// 3. Feign工厂类
 class FeignClientFactoryBean
 		implements FactoryBean<Object>, InitializingBean, ApplicationContextAware {
 
@@ -231,10 +232,12 @@ class FeignClientFactoryBean
 
 	protected <T> T loadBalance(Feign.Builder builder, FeignContext context,
 			HardCodedTarget<T> target) {
+		// 从上下文中获取一个 Client，默认是LoadBalancerFeignClient。它是在FeignRibbonClientAutoConfiguration这个自动装配类中，通过Import实现的
 		Client client = getOptional(context, Client.class);
 		if (client != null) {
 			builder.client(client);
 			Targeter targeter = get(context, Targeter.class);
+			// 携带着构建好的这些对象去创建代理实例  开启hystrix后走  Hystrixtrageter ,没开启的 走 DefaultTargeter
 			return targeter.target(this, builder, context, target);
 		}
 
@@ -242,6 +245,7 @@ class FeignClientFactoryBean
 				"No Feign Client for loadBalancing defined. Did you forget to include spring-cloud-starter-netflix-ribbon?");
 	}
 
+	// Begin：创建实例 被调用的方法getObject
 	@Override
 	public Object getObject() throws Exception {
 		return getTarget();
@@ -253,9 +257,10 @@ class FeignClientFactoryBean
 	 * information
 	 */
 	<T> T getTarget() {
+		//实例化Feign上下文对象FeignContext
 		FeignContext context = this.applicationContext.getBean(FeignContext.class);
-		Feign.Builder builder = feign(context);
-
+		Feign.Builder builder = feign(context);//构建Builder对象
+		//如果url为空，则走负载均衡，生成有负载均衡功能的代理类
 		if (!StringUtils.hasText(this.url)) {
 			if (!this.name.startsWith("http")) {
 				this.url = "http://" + this.name;
@@ -264,9 +269,10 @@ class FeignClientFactoryBean
 				this.url = this.name;
 			}
 			this.url += cleanPath();
+			// 生成具备负载均衡能力的feign客户端，为feign客户端构建起绑定负载均衡客户端
 			return (T) loadBalance(builder, context,
 					new HardCodedTarget<>(this.type, this.name, this.url));
-		}
+		}//如果指定了url，则生成默认的代理类
 		if (StringUtils.hasText(this.url) && !this.url.startsWith("http")) {
 			this.url = "http://" + this.url;
 		}
@@ -279,7 +285,7 @@ class FeignClientFactoryBean
 				client = ((LoadBalancerFeignClient) client).getDelegate();
 			}
 			builder.client(client);
-		}
+		}//生成默认代理类
 		Targeter targeter = get(context, Targeter.class);
 		return (T) targeter.target(this, builder, context,
 				new HardCodedTarget<>(this.type, this.name, url));

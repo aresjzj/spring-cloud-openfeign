@@ -137,10 +137,13 @@ class FeignClientsRegistrar
 		this.resourceLoader = resourceLoader;
 	}
 
+	// 2. 注册配置
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata metadata,
 			BeanDefinitionRegistry registry) {
+		// 注册默认的配置
 		registerDefaultConfiguration(metadata, registry);
+		// 注册注解
 		registerFeignClients(metadata, registry);
 	}
 
@@ -168,7 +171,7 @@ class FeignClientsRegistrar
 		scanner.setResourceLoader(this.resourceLoader);
 
 		Set<String> basePackages;
-
+		// 获取注解
 		Map<String, Object> attrs = metadata
 				.getAnnotationAttributes(EnableFeignClients.class.getName());
 		AnnotationTypeFilter annotationTypeFilter = new AnnotationTypeFilter(
@@ -177,9 +180,11 @@ class FeignClientsRegistrar
 				: (Class<?>[]) attrs.get("clients");
 		if (clients == null || clients.length == 0) {
 			scanner.addIncludeFilter(annotationTypeFilter);
+			// 没有feignclient注解时 加载basepackages注解的内容
 			basePackages = getBasePackages(metadata);
 		}
 		else {
+			// 扫描feignclient注解
 			final Set<String> clientClasses = new HashSet<>();
 			basePackages = new HashSet<>();
 			for (Class<?> clazz : clients) {
@@ -196,7 +201,7 @@ class FeignClientsRegistrar
 			scanner.addIncludeFilter(
 					new AllTypeFilter(Arrays.asList(filter, annotationTypeFilter)));
 		}
-
+		// 循环指定的包地址
 		for (String basePackage : basePackages) {
 			Set<BeanDefinition> candidateComponents = scanner
 					.findCandidateComponents(basePackage);
@@ -215,7 +220,7 @@ class FeignClientsRegistrar
 					String name = getClientName(attributes);
 					registerClientConfiguration(registry, name,
 							attributes.get("configuration"));
-
+					// 注册feign客户端  组装成（FeignClientFactoryBean）beandefinition 注册到ioc容器
 					registerFeignClient(registry, annotationMetadata, attributes);
 				}
 			}
@@ -225,6 +230,7 @@ class FeignClientsRegistrar
 	private void registerFeignClient(BeanDefinitionRegistry registry,
 			AnnotationMetadata annotationMetadata, Map<String, Object> attributes) {
 		String className = annotationMetadata.getClassName();
+		// 构建一个 FeignClientFactoryBean的 definition
 		BeanDefinitionBuilder definition = BeanDefinitionBuilder
 				.genericBeanDefinition(FeignClientFactoryBean.class);
 		validate(attributes);
@@ -235,8 +241,8 @@ class FeignClientsRegistrar
 		String contextId = getContextId(attributes);
 		definition.addPropertyValue("contextId", contextId);
 		definition.addPropertyValue("type", className);
-		definition.addPropertyValue("decode404", attributes.get("decode404"));
-		definition.addPropertyValue("fallback", attributes.get("fallback"));
+		definition.addPropertyValue("decode404", attributes.get("decode404"));  // 404是否解码还是报错
+		definition.addPropertyValue("fallback", attributes.get("fallback"));	// 熔断器
 		definition.addPropertyValue("fallbackFactory", attributes.get("fallbackFactory"));
 		definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
 
@@ -255,6 +261,7 @@ class FeignClientsRegistrar
 
 		BeanDefinitionHolder holder = new BeanDefinitionHolder(beanDefinition, className,
 				new String[] { alias });
+		// 将FeignClientFactoryBean 注册到ioc
 		BeanDefinitionReaderUtils.registerBeanDefinition(holder, registry);
 	}
 

@@ -44,6 +44,7 @@ class HystrixTargeter implements Targeter {
 		if (setterFactory != null) {
 			builder.setterFactory(setterFactory);
 		}
+		// 设定熔断配置
 		Class<?> fallback = factory.getFallback();
 		if (fallback != void.class) {
 			return targetWithFallback(name, context, target, builder, fallback);
@@ -53,7 +54,7 @@ class HystrixTargeter implements Targeter {
 			return targetWithFallbackFactory(name, context, target, builder,
 					fallbackFactory);
 		}
-
+		// 返回实例
 		return feign.target(target);
 	}
 
